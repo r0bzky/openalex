@@ -1,16 +1,11 @@
 import json
 import requests
-
 import pprint
-
 import pandas as pd
-import numpy as np
 
+# Set seed article id
 id1 = 'w295038424'
-
 urls = ['https://api.openalex.org/works/' + id1]
-
-print(urls)
 
 def process_citations(url_list, paper_table, author_table, bridge_table, referenced_works_table, cited_by_table):
 
@@ -30,7 +25,7 @@ def process_citations(url_list, paper_table, author_table, bridge_table, referen
         page = 1
         total_pages = 1  # Will be updated in the first request
         
-        while page <= 1:
+        while page <= total_pages:
             # Add page parameter to URL
             paginated_url = f"{citing_papers_url}&page={page}"
             citing_response = requests.get(paginated_url)
@@ -123,9 +118,6 @@ def process_citations(url_list, paper_table, author_table, bridge_table, referen
             page += 1
     return paper_table, author_table, bridge_table, referenced_works_table, cited_by_table
 
-print('End: Part 1')
-
-
 # Initiatilize data frames
 paper_table = pd.DataFrame()
 author_table = pd.DataFrame(columns=['author_id', 'name', 'organization'])
@@ -143,15 +135,11 @@ paper_table, author_table, bridge_table, referenced_works_table, cited_by_table=
     cited_by_table
 )
 
-# Repeat the function again, using all ids in referenced_works_table and cited_by_table
+# Repeat the function again using all entries in cited_by_table.
+# In future, improve by adding entries from referenced_works_table too.
 cited_ids = cited_by_table['paper_id'].dropna().unique()
-#referenced_ids = referenced_works_table['referenced_work_id'].dropna().unique()
-#all_ids = np.union1d(cited_ids, referenced_ids)
 new_urls = [f'https://api.openalex.org/works/{work_id}' 
             for work_id in cited_ids ]
-
-
-print('STOP')
 
 
 paper_table, author_table, bridge_table, referenced_works_table, cited_by_table= process_citations(
@@ -163,8 +151,8 @@ paper_table, author_table, bridge_table, referenced_works_table, cited_by_table=
     cited_by_table
 )
 
-print('WRITE NEXT')
 
+# Write to Excel workbook
 with pd.ExcelWriter('research_data.xlsx') as writer:
     paper_table.to_excel(writer, sheet_name='Papers', index=False)
     author_table.to_excel(writer, sheet_name='Authors', index=False)
@@ -172,4 +160,4 @@ with pd.ExcelWriter('research_data.xlsx') as writer:
     referenced_works_table.to_excel(writer, sheet_name='References', index=False)
     cited_by_table.to_excel(writer, sheet_name='Citations', index=False)
 
-print('END END')
+print('END')
