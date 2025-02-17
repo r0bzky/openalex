@@ -3,10 +3,7 @@ import requests
 import pprint
 import pandas as pd
 
-# Set seed article id
-id1 = 'w295038424'
-urls = ['https://api.openalex.org/works/' + id1]
-
+# Create a re-usable function to gather papers and create relational tables
 def process_citations(url_list, paper_table, author_table, bridge_table, referenced_works_table, cited_by_table):
 
     for url in url_list:
@@ -44,7 +41,8 @@ def process_citations(url_list, paper_table, author_table, bridge_table, referen
                 cited_by_count = work.get('cited_by_count')
                 fwci = work.get('fwci')
                 if cited_by_count >= 6 and fwci > 1 and work.get('is_retracted', False) is False:
-
+                    
+                    # Create main paper entries
                     paper_data = {
                         #'seed_id': data['id'],
                         'paper_id': work.get('id', '').split('/')[-1],
@@ -87,35 +85,29 @@ def process_citations(url_list, paper_table, author_table, bridge_table, referen
                         }
                         referenced_works_table = pd.concat([referenced_works_table, pd.DataFrame([referenced_entry])], ignore_index=True)
 
-                #    for cited_by in paper_table['paper_id']
-                #         cited_by_entry = {
-                #             "paper_id": paper_data['paper_id'],
-                #             "cited_by_id": cited_by.split('/')[-1]
-                #         }
-                #         cited_by_table = pd.concat([cited_by_table, pd.DataFrame([cited_by_entry])], ignore_index=True)
-
+                    # Created cited_by entries
                     cited_by_entry = {
                         "seed_id": url.split('/')[-1],
                         "paper_id": paper_data['paper_id']
                     }
                     cited_by_table = pd.concat([cited_by_table, pd.DataFrame([cited_by_entry])], ignore_index=True)
 
-
+                    # For future abstract table
                     # abstract_table = {
                     #     'paper_id': paper_data['paper_id'],
                     #     'abstract': work.get('abstract_inverted_index')
                     # }
 
+                    # For future keywords table (maybe merge with abstract table?)
                     # keywords_table = {
                     #     'paper_id': paper_data['paper_id'],
                     #     'keywords': (work.get('keywords')),
                     #     'topics': (work.get('topics'))
                     # }
-
-                    # cited_by_table = {}
                     
             print(f"Processed page {page} of {total_pages}")
             page += 1
+
     return paper_table, author_table, bridge_table, referenced_works_table, cited_by_table
 
 # Initiatilize data frames
@@ -125,7 +117,11 @@ bridge_table = pd.DataFrame()
 referenced_works_table = pd.DataFrame()
 cited_by_table = pd.DataFrame()
 
+# Set seed article id
+id1 = 'w295038424'
+urls = ['https://api.openalex.org/works/' + id1]
 
+# Apply function to the seed article (round 1)
 paper_table, author_table, bridge_table, referenced_works_table, cited_by_table= process_citations(
     urls,
     paper_table,
@@ -135,13 +131,13 @@ paper_table, author_table, bridge_table, referenced_works_table, cited_by_table=
     cited_by_table
 )
 
-# Repeat the function again using all entries in cited_by_table.
+# Pull all entries from cited_by_table.
 # In future, improve by adding entries from referenced_works_table too.
 cited_ids = cited_by_table['paper_id'].dropna().unique()
 new_urls = [f'https://api.openalex.org/works/{work_id}' 
             for work_id in cited_ids ]
 
-
+# Apply function to the cited_by_table entries (round 2)
 paper_table, author_table, bridge_table, referenced_works_table, cited_by_table= process_citations(
     new_urls,
     paper_table,
@@ -151,8 +147,7 @@ paper_table, author_table, bridge_table, referenced_works_table, cited_by_table=
     cited_by_table
 )
 
-
-# Write to Excel workbook
+# Write each relational table to Excel workbook
 with pd.ExcelWriter('research_data.xlsx') as writer:
     paper_table.to_excel(writer, sheet_name='Papers', index=False)
     author_table.to_excel(writer, sheet_name='Authors', index=False)
