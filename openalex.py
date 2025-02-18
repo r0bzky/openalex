@@ -1,6 +1,6 @@
 import json
 import requests
-import pprint
+#import pprint
 import pandas as pd
 
 # Create a re-usable function to gather papers and create relational tables
@@ -36,15 +36,15 @@ def process_citations(url_list, paper_table, author_table, bridge_table, referen
                 print(f"Found {total_records} total citations across {total_pages} pages")
             
             for work in citing_data['results']:
-
-                # Only add quality papers
-                cited_by_count = work.get('cited_by_count')
-                fwci = work.get('fwci')
-                if cited_by_count >= 6 and fwci > 1 and work.get('is_retracted', False) is False:
+                # Safely get values with defaults
+                cited_by_count = work.get('cited_by_count') or 0
+                fwci = work.get('fwci') or 0
+                is_retracted = work.get('is_retracted', False)
+                
+                if cited_by_count >= 6 and fwci > 1 and not is_retracted:
                     
                     # Create main paper entries
                     paper_data = {
-                        #'seed_id': data['id'],
                         'paper_id': work.get('id', '').split('/')[-1],
                         'title': work.get('title'),
                         'publication_date': work.get('publication_date'),
@@ -118,8 +118,9 @@ referenced_works_table = pd.DataFrame()
 cited_by_table = pd.DataFrame()
 
 # Set seed article id
-id1 = 'w295038424'
-urls = ['https://api.openalex.org/works/' + id1]
+id1 = 'W85815303' #Immerwahr & Foleno (2000)
+id2 = 'W2001526706' #Doyle (2016)
+urls = ['https://api.openalex.org/works/' + id1, 'https://api.openalex.org/works/' + id2]
 
 # Apply function to the seed article (round 1)
 paper_table, author_table, bridge_table, referenced_works_table, cited_by_table= process_citations(
